@@ -1,0 +1,16 @@
+/* LayerLoader.module.css */
+.container {
+  position: absolute;
+  bottom: 16px;
+  left: 16px;
+  z-index: 1000;
+}
+
+.button {
+  padding: 8px 16px;
+  font-size: 1rem;
+}
+
+.fileInput {
+  display: none;
+}
