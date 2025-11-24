@@ -7,7 +7,6 @@ import Select from "@mui/material/Select";
 import type { SelectChangeEvent } from "@mui/material/Select";
 import TextField from "@mui/material/TextField";
 import Popover from "@mui/material/Popover";
-import Grid from "@mui/material/Grid";
 import Typography from "@mui/material/Typography";
 import { SketchPicker } from "react-color";
 import type { ColorResult } from "react-color";
@@ -124,49 +123,47 @@ const StyleControl: React.FC<StyleControlProps> = ({
 
   return (
     <Box sx={{ p: 2, bgcolor: "#fafafa", borderRadius: 1 }}>
-      <Grid container spacing={2}>
-        <Grid item xs={6}>
-          <ColorSwatch
-            color={style.fillColor}
-            label={t(language, "fillColor")}
-            onChange={handleFillColorChange}
-          />
-        </Grid>
-        <Grid item xs={6}>
-          <ColorSwatch
-            color={style.strokeColor}
-            label={t(language, "strokeColor")}
-            onChange={handleStrokeColorChange}
-          />
-        </Grid>
-        <Grid item xs={6}>
-          <TextField
-            label={t(language, "strokeWidth")}
-            type="number"
-            value={style.strokeWidth}
-            onChange={handleStrokeWidthChange}
-            fullWidth
-            size="small"
-            InputProps={{ inputProps: { min: 0 } }}
-          />
-        </Grid>
-        <Grid item xs={6}>
-          <FormControl fullWidth size="small">
-            <InputLabel>{t(language, "borderType")}</InputLabel>
-            <Select
-              value={style.borderType}
-              label={t(language, "borderType")}
-              onChange={handleBorderTypeChange}
-            >
-              {borderTypes.map((type) => (
-                <MenuItem key={type.value} value={type.value}>
-                  {t(language, type.labelKey)}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        </Grid>
-      </Grid>
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: "repeat(2, 1fr)",
+          gap: 2,
+        }}
+      >
+        <ColorSwatch
+          color={style.fillColor}
+          label={t(language, "fillColor")}
+          onChange={handleFillColorChange}
+        />
+        <ColorSwatch
+          color={style.strokeColor}
+          label={t(language, "strokeColor")}
+          onChange={handleStrokeColorChange}
+        />
+        <TextField
+          label={t(language, "strokeWidth")}
+          type="number"
+          value={style.strokeWidth}
+          onChange={handleStrokeWidthChange}
+          fullWidth
+          size="small"
+          InputProps={{ inputProps: { min: 0 } }}
+        />
+        <FormControl fullWidth size="small">
+          <InputLabel>{t(language, "borderType")}</InputLabel>
+          <Select
+            value={style.borderType}
+            label={t(language, "borderType")}
+            onChange={handleBorderTypeChange}
+          >
+            {borderTypes.map((type) => (
+              <MenuItem key={type.value} value={type.value}>
+                {t(language, type.labelKey)}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      </Box>
     </Box>
   );
 };

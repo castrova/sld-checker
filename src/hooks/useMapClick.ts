@@ -81,7 +81,10 @@ export const useMapClick = (
               const properties = feature.getProperties();
               // Remove geometry from properties to avoid non-serializable error
               // Also handle the case where geometry might be under a different key or implicit
-              const geometryName = feature.getGeometryName();
+              const geometryName =
+                "getGeometryName" in feature
+                  ? feature.getGeometryName()
+                  : "geometry";
               if (properties[geometryName]) {
                 delete properties[geometryName];
               }
