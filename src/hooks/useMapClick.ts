@@ -169,6 +169,8 @@ export const useMapClick = (
           language: language as any,
           onClose: handleCloseOverlay,
           stylingFields: stylingFields,
+          rules: rules,
+          setHighlightedRuleIndex: setHighlightedRuleIndex,
         })
       );
     };

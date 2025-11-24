@@ -14,6 +14,8 @@ import VectorLayer from "ol/layer/Vector";
 import VectorSource from "ol/source/Vector";
 import GeoJSON from "ol/format/GeoJSON";
 import { Circle as CircleStyle, Fill, Stroke, Style } from "ol/style";
+import type { SldRuleStats } from "../../../utils/sldUtils";
+import { evaluateFilter } from "../../../utils/sldUtils";
 
 interface ClickOverlayProps {
   clickInfo: ClickInfo | null;
@@ -21,6 +23,8 @@ interface ClickOverlayProps {
   language: import("../../../i18n").Language;
   onClose: () => void;
   stylingFields?: string[];
+  rules?: SldRuleStats[];
+  setHighlightedRuleIndex?: (index: number | null) => void;
 }
 
 const ClickOverlay: React.FC<ClickOverlayProps> = ({
@@ -29,6 +33,8 @@ const ClickOverlay: React.FC<ClickOverlayProps> = ({
   language,
   onClose,
   stylingFields,
+  rules,
+  setHighlightedRuleIndex,
 }) => {
   const [currentIndex, setCurrentIndex] = React.useState(0);
   const nodeRef = React.useRef(null);
@@ -100,6 +106,30 @@ const ClickOverlay: React.FC<ClickOverlayProps> = ({
       }
     };
   }, [mapInstance]);
+
+  // Update highlighted rule when currentIndex changes
+  React.useEffect(() => {
+    if (
+      !rules ||
+      !setHighlightedRuleIndex ||
+      !clickInfo ||
+      clickInfo.features.length === 0
+    ) {
+      return;
+    }
+
+    const currentFeature = clickInfo.features[currentIndex];
+    let matchingRuleIndex: number | null = null;
+
+    for (let i = 0; i < rules.length; i++) {
+      if (evaluateFilter(rules[i].filter, currentFeature.properties)) {
+        matchingRuleIndex = i;
+        break;
+      }
+    }
+
+    setHighlightedRuleIndex(matchingRuleIndex);
+  }, [currentIndex, clickInfo, rules, setHighlightedRuleIndex]);
 
   if (!clickInfo || !mapInstance?.current) return null;
 
