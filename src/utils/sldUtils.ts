@@ -50,7 +50,7 @@ export interface SldAnalysisResult {
 }
 
 // Helper to evaluate a Geostyler filter against feature properties
-const evaluateFilter = (filter: any, properties: any): boolean => {
+export const evaluateFilter = (filter: any, properties: any): boolean => {
   if (!filter) return true; // No filter means match all
   if (!Array.isArray(filter)) return true; // Unknown format, assume match
 

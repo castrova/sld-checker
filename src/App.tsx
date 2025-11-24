@@ -51,8 +51,18 @@ const App: React.FC = () => {
 
   const [activeRuleIndices, setActiveRuleIndices] = useState<number[]>([]);
   const [showUnmatched, setShowUnmatched] = useState(false);
+  const [highlightedRuleIndex, setHighlightedRuleIndex] = useState<
+    number | null
+  >(null);
 
-  useMapClick(mapInstance, layerObjects, language, sldStats?.stylingFields);
+  useMapClick(
+    mapInstance,
+    layerObjects,
+    language,
+    sldStats?.stylingFields,
+    sldStats?.rules,
+    setHighlightedRuleIndex
+  );
 
   const updateStyle = async (
     indices: number[],
@@ -279,6 +289,7 @@ const App: React.FC = () => {
                     onToggleRule={handleToggleRule}
                     showUnmatched={showUnmatched}
                     onToggleUnmatched={handleToggleUnmatched}
+                    highlightedRuleIndex={highlightedRuleIndex}
                   />
                 </Box>
               )}

@@ -26,6 +26,7 @@ interface SmartLegendProps {
   onToggleRule: (index: number) => void;
   showUnmatched: boolean;
   onToggleUnmatched: () => void;
+  highlightedRuleIndex: number | null;
 }
 
 const SmartLegend: React.FC<SmartLegendProps> = ({
@@ -36,6 +37,7 @@ const SmartLegend: React.FC<SmartLegendProps> = ({
   onToggleRule,
   showUnmatched,
   onToggleUnmatched,
+  highlightedRuleIndex,
 }) => {
   const allMatched = unmatchedCount === 0;
 
@@ -152,6 +154,7 @@ const SmartLegend: React.FC<SmartLegendProps> = ({
           const isActive =
             activeRuleIndices.length === 0 || activeRuleIndices.includes(index);
           const isSelected = activeRuleIndices.includes(index);
+          const isHighlighted = highlightedRuleIndex === index;
 
           return (
             <ListItem
@@ -161,6 +164,12 @@ const SmartLegend: React.FC<SmartLegendProps> = ({
                 flexDirection: "column",
                 alignItems: "flex-start",
                 opacity: isActive ? 1 : 0.5,
+                borderLeft: isHighlighted ? "4px solid #1976d2" : "none",
+                bgcolor: isHighlighted
+                  ? "rgba(25, 118, 210, 0.08)"
+                  : "transparent",
+                pl: isHighlighted ? 1 : 0,
+                transition: "all 0.2s ease-in-out",
               }}
               secondaryAction={
                 <IconButton

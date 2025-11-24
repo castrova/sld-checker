@@ -13,12 +13,18 @@ import { createRoot } from "react-dom/client";
 import ClickOverlay from "../components/PointInfo/Overlay/ClickOverlay";
 import React from "react";
 import GeoJSON from "ol/format/GeoJSON";
+import type { SldRuleStats } from "../utils/sldUtils";
+import { evaluateFilter } from "../utils/sldUtils";
 
 export const useMapClick = (
   mapInstance: OLMap | null,
   layerObjects: React.MutableRefObject<Map<string, VectorLayer>>,
   language: string,
-  stylingFields: string[] = []
+  stylingFields: string[] = [],
+  rules: SldRuleStats[] | undefined = undefined,
+  setHighlightedRuleIndex:
+    | ((index: number | null) => void)
+    | undefined = undefined
 ) => {
   const dispatch = useDispatch();
   const activeRootRef = useRef<any>(null);
@@ -109,6 +115,23 @@ export const useMapClick = (
 
       dispatch(setClickInfo(clickInfo));
 
+      // Find matching rule for the first feature (if rules are provided)
+      if (rules && setHighlightedRuleIndex && clickInfo.features.length > 0) {
+        const firstFeature = clickInfo.features[0];
+        let matchingRuleIndex: number | null = null;
+
+        for (let i = 0; i < rules.length; i++) {
+          if (evaluateFilter(rules[i].filter, firstFeature.properties)) {
+            matchingRuleIndex = i;
+            break;
+          }
+        }
+
+        setHighlightedRuleIndex(matchingRuleIndex);
+      } else if (setHighlightedRuleIndex) {
+        setHighlightedRuleIndex(null);
+      }
+
       // Overlay logic
       mapInstance.getOverlays().clear();
 
@@ -129,6 +152,9 @@ export const useMapClick = (
         dispatch(setClickInfo(null));
         mapInstance.getOverlays().clear();
         markerLayerRef.current?.getSource()?.clear(); // Clear marker
+        if (setHighlightedRuleIndex) {
+          setHighlightedRuleIndex(null); // Clear highlight
+        }
 
         if (activeRootRef.current) {
           activeRootRef.current.unmount();
@@ -160,5 +186,13 @@ export const useMapClick = (
         markerLayerRef.current = null;
       }
     };
-  }, [mapInstance, layerObjects, dispatch, language, stylingFields]);
+  }, [
+    mapInstance,
+    layerObjects,
+    dispatch,
+    language,
+    stylingFields,
+    rules,
+    setHighlightedRuleIndex,
+  ]);
 };
