@@ -9,18 +9,14 @@ import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import DeleteIcon from "@mui/icons-material/Delete";
 import CenterFocusStrongIcon from "@mui/icons-material/CenterFocusStrong";
-import TransparencyControl from "./layer/TransparencyControl";
-import StyleControl from "./layer/StyleControl";
+
 import ListItemText from "@mui/material/ListItemText";
 import { useDispatch } from "react-redux";
 import { removeLayer } from "../../features/map/mapSlice";
 import type { LayerMeta } from "../../features/map/mapSlice";
 import type VectorLayer from "ol/layer/Vector";
 import type OLMap from "ol/Map";
-import OLStyle from "ol/style/Style";
-import OLFill from "ol/style/Fill";
-import OLStroke from "ol/style/Stroke";
-import { updateLayerStyle } from "../../features/map/mapSlice";
+
 import { Box, Stack } from "@mui/material";
 import { t } from "../../i18n";
 
@@ -43,23 +39,13 @@ const LayerItem: React.FC<LayerItemProps> = ({
 }) => {
   const dispatch = useDispatch();
   const [expanded, setExpanded] = useState(false);
-  const [opacity, setOpacity] = useState(1);
   const [visible, setVisible] = useState(true);
-  const [showTransparency, setShowTransparency] = useState(false);
-  const [showStyle, setShowStyle] = useState(false);
 
   const handleAccordionChange = (
     _: React.SyntheticEvent,
     isExpanded: boolean
   ) => {
     setExpanded(isExpanded);
-  };
-
-  const handleOpacityChange = (value: number) => {
-    setOpacity(value);
-    if (layerObject) {
-      layerObject.setOpacity(value);
-    }
   };
 
   const handleVisibilityToggle = (e: React.MouseEvent) => {
@@ -69,32 +55,6 @@ const LayerItem: React.FC<LayerItemProps> = ({
     if (layerObject) {
       layerObject.setVisible(newVisible);
     }
-  };
-
-  const handleStyleChange = (style: {
-    fillColor: string;
-    strokeColor: string;
-    strokeWidth: number;
-    borderType: string;
-  }) => {
-    if (layerObject) {
-      const olStyle = new OLStyle({
-        fill: new OLFill({ color: style.fillColor }),
-        stroke: new OLStroke({
-          color: style.strokeColor,
-          width: style.strokeWidth,
-          lineDash:
-            style.borderType === "dashed"
-              ? [10, 10]
-              : style.borderType === "dotted"
-              ? [2, 6]
-              : undefined,
-        }),
-      });
-      layerObject.setStyle(olStyle);
-    }
-    // Update Redux
-    dispatch(updateLayerStyle({ id: layer.id, style }));
   };
 
   const handleZoomToLayer = (e: React.MouseEvent) => {
@@ -155,45 +115,6 @@ const LayerItem: React.FC<LayerItemProps> = ({
       </AccordionSummary>
       <AccordionDetails sx={{ p: 2 }}>
         <Stack spacing={2}>
-          <Box>
-            <Button
-              variant={showTransparency ? "contained" : "outlined"}
-              size="small"
-              onClick={() => {
-                setShowTransparency((v) => !v);
-                if (!showTransparency) setShowStyle(false);
-              }}
-              sx={{ mr: 1 }}
-            >
-              {t(language, "transparency")}
-            </Button>
-            <Button
-              variant={showStyle ? "contained" : "outlined"}
-              size="small"
-              onClick={() => {
-                setShowStyle((v) => !v);
-                if (!showStyle) setShowTransparency(false);
-              }}
-            >
-              {t(language, "styles")}
-            </Button>
-          </Box>
-
-          {showTransparency && (
-            <TransparencyControl
-              opacity={opacity}
-              onChange={handleOpacityChange}
-            />
-          )}
-
-          {showStyle && (
-            <StyleControl
-              onStyleChange={handleStyleChange}
-              style={layer.style}
-              language={language}
-            />
-          )}
-
           <Button
             variant="contained"
             color="error"
