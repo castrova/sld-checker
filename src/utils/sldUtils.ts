@@ -11,6 +11,7 @@ export interface SldRuleStats {
   count: number;
   filter: any; // Geostyler filter
   symbolizer: any; // Representative symbolizer for legend
+  scaleDenominator?: { min?: number; max?: number };
 }
 
 // Helper to extract property names from a Geostyler filter
@@ -160,6 +161,7 @@ export const parseSldAndAnalyze = async (
       count: 0,
       filter: rule.filter,
       symbolizer: rule.symbolizers,
+      scaleDenominator: rule.scaleDenominator as any,
     };
   });
 

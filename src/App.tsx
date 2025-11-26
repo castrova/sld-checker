@@ -47,6 +47,8 @@ const App: React.FC = () => {
   const [language, setLanguage] = useState<Language>("es");
   const [projectLoaded, setProjectLoaded] = useState(false);
   const [sldStats, setSldStats] = useState<SldAnalysisResult | null>(null);
+  const [layerName, setLayerName] = useState<string>("");
+  const [currentScale, setCurrentScale] = useState<number | null>(null);
   const layerObjects = useRef<Map<string, VectorLayer>>(new Map());
 
   const [activeRuleIndices, setActiveRuleIndices] = useState<number[]>([]);
@@ -63,6 +65,33 @@ const App: React.FC = () => {
     sldStats?.rules,
     setHighlightedRuleIndex
   );
+
+  // Calculate scale on map move
+  React.useEffect(() => {
+    if (!mapInstance) return;
+
+    const calculateScale = () => {
+      const view = mapInstance.getView();
+      const resolution = view.getResolution();
+      if (resolution) {
+        // OGC DPI = 90.714
+        // Inches per meter = 39.3701
+        // Scale = Resolution * InchesPerUnit * DPI
+        // Assuming meters as units (EPSG:3857 or EPSG:25831)
+        const scale = resolution * 39.3701 * 90.714;
+        setCurrentScale(scale);
+      }
+    };
+
+    // Initial calculation
+    calculateScale();
+
+    mapInstance.on("moveend", calculateScale);
+
+    return () => {
+      mapInstance.un("moveend", calculateScale);
+    };
+  }, [mapInstance]);
 
   const updateStyle = async (
     indices: number[],
@@ -122,6 +151,7 @@ const App: React.FC = () => {
       setActiveRuleIndices([]);
       setShowUnmatched(false);
       setShowUnmatched(false); // Reset showUnmatched state
+      setLayerName(layerFile.name);
 
       // 1. Read Layer File
       const layerContent = await readFileAsText(layerFile);
@@ -290,6 +320,8 @@ const App: React.FC = () => {
                     showUnmatched={showUnmatched}
                     onToggleUnmatched={handleToggleUnmatched}
                     highlightedRuleIndex={highlightedRuleIndex}
+                    layerName={layerName}
+                    currentScale={currentScale}
                   />
                 </Box>
               )}

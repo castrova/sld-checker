@@ -27,6 +27,8 @@ interface SmartLegendProps {
   showUnmatched: boolean;
   onToggleUnmatched: () => void;
   highlightedRuleIndex: number | null;
+  layerName: string;
+  currentScale: number | null;
 }
 
 const SmartLegend: React.FC<SmartLegendProps> = ({
@@ -38,8 +40,39 @@ const SmartLegend: React.FC<SmartLegendProps> = ({
   showUnmatched,
   onToggleUnmatched,
   highlightedRuleIndex,
+  layerName,
+  currentScale,
 }) => {
   const allMatched = unmatchedCount === 0;
+
+  // Group rules by scale
+  const groupedRules = React.useMemo(() => {
+    const groups: Record<string, { rules: SldRuleStats[]; indices: number[] }> =
+      {};
+
+    rules.forEach((rule, index) => {
+      let key = "General";
+      if (rule.scaleDenominator) {
+        const min = rule.scaleDenominator.min;
+        const max = rule.scaleDenominator.max;
+        if (min !== undefined && max !== undefined) {
+          key = `1:${min} - 1:${max}`;
+        } else if (min !== undefined) {
+          key = `> 1:${min}`;
+        } else if (max !== undefined) {
+          key = `< 1:${max}`;
+        }
+      }
+
+      if (!groups[key]) {
+        groups[key] = { rules: [], indices: [] };
+      }
+      groups[key].rules.push(rule);
+      groups[key].indices.push(index);
+    });
+
+    return groups;
+  }, [rules]);
 
   // Helper to render a simple preview of the symbolizer
   const renderSymbolPreview = (symbolizers: any[]) => {
@@ -114,6 +147,11 @@ const SmartLegend: React.FC<SmartLegendProps> = ({
       <Typography variant="h6" gutterBottom>
         {t(language, "legend") || "Legend"}
       </Typography>
+      {layerName && (
+        <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+          {layerName}
+        </Typography>
+      )}
 
       <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
         {allMatched ? (
@@ -150,84 +188,143 @@ const SmartLegend: React.FC<SmartLegendProps> = ({
       <Divider sx={{ mb: 2 }} />
 
       <List dense>
-        {rules.map((rule, index) => {
-          const isActive =
-            activeRuleIndices.length === 0 || activeRuleIndices.includes(index);
-          const isSelected = activeRuleIndices.includes(index);
-          const isHighlighted = highlightedRuleIndex === index;
+        {Object.entries(groupedRules).map(([groupName, group]) => {
+          // Check if this group matches the current scale
+          let isActiveScale = false;
+          if (currentScale !== null) {
+            if (groupName === "General") {
+              isActiveScale = true; // Always active or maybe only if no other specific scale matches?
+              // Actually, "General" usually means applies to all scales, so it's always active.
+            } else {
+              // Parse groupName to get range
+              // Formats: "1:min - 1:max", "> 1:min", "< 1:max"
+              // Note: Scale denominator increases as you zoom out (small scale).
+              // 1:1000 means denominator 1000.
+              // "1:1000 - 1:5000" means denominators between 1000 and 5000.
+
+              // Let's parse the groupName string we created
+              if (groupName.includes("-")) {
+                const parts = groupName.split("-");
+                const min = parseInt(parts[0].replace("1:", "").trim());
+                const max = parseInt(parts[1].replace("1:", "").trim());
+                isActiveScale = currentScale >= min && currentScale <= max;
+              } else if (groupName.includes(">")) {
+                const min = parseInt(groupName.replace("> 1:", "").trim());
+                isActiveScale = currentScale > min;
+              } else if (groupName.includes("<")) {
+                const max = parseInt(groupName.replace("< 1:", "").trim());
+                isActiveScale = currentScale < max;
+              }
+            }
+          }
 
           return (
-            <ListItem
-              key={index}
-              sx={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "flex-start",
-                opacity: isActive ? 1 : 0.5,
-                borderLeft: isHighlighted ? "4px solid #1976d2" : "none",
-                bgcolor: isHighlighted
-                  ? "rgba(25, 118, 210, 0.08)"
-                  : "transparent",
-                pl: isHighlighted ? 1 : 0,
-                transition: "all 0.2s ease-in-out",
-              }}
-              secondaryAction={
-                <IconButton
-                  edge="end"
-                  aria-label="toggle visibility"
-                  onClick={() => onToggleRule(index)}
-                  size="small"
+            <React.Fragment key={groupName}>
+              {groupName !== "General" && (
+                <Typography
+                  variant="caption"
+                  sx={{
+                    mt: 2,
+                    mb: 1,
+                    display: "block",
+                    fontWeight: "bold",
+                    color: isActiveScale ? "primary.main" : "text.secondary",
+                    bgcolor: isActiveScale
+                      ? "rgba(25, 118, 210, 0.1)"
+                      : "transparent",
+                    p: 0.5,
+                    borderRadius: 1,
+                  }}
                 >
-                  {isActive ? (
-                    <VisibilityIcon color={isSelected ? "primary" : "action"} />
-                  ) : (
-                    <VisibilityOffIcon color="disabled" />
-                  )}
-                </IconButton>
-              }
-            >
-              <Box
-                sx={{
-                  display: "flex",
-                  width: "100%",
-                  alignItems: "center",
-                  pr: 4,
-                }}
-              >
-                <ListItemIcon sx={{ minWidth: 36 }}>
-                  {renderSymbolPreview(rule.symbolizer)}
-                </ListItemIcon>
-                <ListItemText
-                  primary={rule.ruleName}
-                  secondary={
-                    <React.Fragment>
-                      <Typography
-                        component="span"
-                        variant="caption"
-                        color="text.secondary"
+                  {t(language, "scale")}: {groupName}{" "}
+                  {isActiveScale && t(language, "active")}
+                </Typography>
+              )}
+              {group.rules.map((rule, i) => {
+                const originalIndex = group.indices[i];
+                const isActive =
+                  activeRuleIndices.length === 0 ||
+                  activeRuleIndices.includes(originalIndex);
+                const isSelected = activeRuleIndices.includes(originalIndex);
+                const isHighlighted = highlightedRuleIndex === originalIndex;
+
+                return (
+                  <ListItem
+                    key={originalIndex}
+                    sx={{
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "flex-start",
+                      opacity: isActive ? 1 : 0.5,
+                      borderLeft: isHighlighted ? "4px solid #1976d2" : "none",
+                      bgcolor: isHighlighted
+                        ? "rgba(25, 118, 210, 0.08)"
+                        : "transparent",
+                      pl: isHighlighted ? 1 : 0,
+                      transition: "all 0.2s ease-in-out",
+                    }}
+                    secondaryAction={
+                      <IconButton
+                        edge="end"
+                        aria-label="toggle visibility"
+                        onClick={() => onToggleRule(originalIndex)}
+                        size="small"
                       >
-                        {rule.count} features
-                      </Typography>
-                      {/* Display filter info if available */}
-                      {rule.filter && (
-                        <Typography
-                          component="div"
-                          variant="caption"
-                          sx={{
-                            fontStyle: "italic",
-                            fontSize: "0.75rem",
-                            mt: 0.5,
-                            color: "text.primary",
-                          }}
-                        >
-                          {formatFilter(rule.filter)}
-                        </Typography>
-                      )}
-                    </React.Fragment>
-                  }
-                />
-              </Box>
-            </ListItem>
+                        {isActive ? (
+                          <VisibilityIcon
+                            color={isSelected ? "primary" : "action"}
+                          />
+                        ) : (
+                          <VisibilityOffIcon color="disabled" />
+                        )}
+                      </IconButton>
+                    }
+                  >
+                    <Box
+                      sx={{
+                        display: "flex",
+                        width: "100%",
+                        alignItems: "center",
+                        pr: 4,
+                      }}
+                    >
+                      <ListItemIcon sx={{ minWidth: 36 }}>
+                        {renderSymbolPreview(rule.symbolizer)}
+                      </ListItemIcon>
+                      <ListItemText
+                        primary={rule.ruleName}
+                        secondary={
+                          <React.Fragment>
+                            <Typography
+                              component="span"
+                              variant="caption"
+                              color="text.secondary"
+                            >
+                              {rule.count} features
+                            </Typography>
+                            {/* Display filter info if available */}
+                            {rule.filter && (
+                              <Typography
+                                component="div"
+                                variant="caption"
+                                sx={{
+                                  fontStyle: "italic",
+                                  fontSize: "0.75rem",
+                                  mt: 0.5,
+                                  color: "text.primary",
+                                }}
+                              >
+                                {formatFilter(rule.filter)}
+                              </Typography>
+                            )}
+                          </React.Fragment>
+                        }
+                      />
+                    </Box>
+                  </ListItem>
+                );
+              })}
+            </React.Fragment>
           );
         })}
       </List>

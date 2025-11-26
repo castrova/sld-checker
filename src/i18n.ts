@@ -3,6 +3,8 @@ export type Language = "es" | "en";
 export const translations: Record<Language, Record<string, string>> = {
   es: {
     legend: "Leyenda",
+    scale: "Escala",
+    active: "Activo",
     allFeaturesStyled: "Todos los elementos están estilizados",
     unmatchedFeatures: "Elementos no estilizados",
     stylingProperties: "Propiedades de estilizado",
@@ -51,6 +53,8 @@ export const translations: Record<Language, Record<string, string>> = {
   },
   en: {
     legend: "Legend",
+    scale: "Scale",
+    active: "Active",
     allFeaturesStyled: "All features styled",
     unmatchedFeatures: "Unmatched features",
     stylingProperties: "Styling properties",
