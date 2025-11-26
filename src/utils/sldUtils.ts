@@ -84,6 +84,37 @@ export const evaluateFilter = (filter: any, properties: any): boolean => {
   }
 };
 
+// Helper to proxy external image URLs to avoid CORS issues
+function proxyExternalImageUrl(url: string): string {
+  // Only proxy external URLs (not data URLs or relative paths)
+  if (url.startsWith("http://") || url.startsWith("https://")) {
+    // Using corsproxy.io as a CORS proxy
+    return `https://corsproxy.io/?${encodeURIComponent(url)}`;
+  }
+  return url;
+}
+
+// Helper to modify IconSymbolizers to use proxied URLs
+function addProxyToIconSymbolizers(
+  geostylerStyle: GeoStylerStyle
+): GeoStylerStyle {
+  return {
+    ...geostylerStyle,
+    rules: geostylerStyle.rules.map((rule) => ({
+      ...rule,
+      symbolizers: rule.symbolizers?.map((symbolizer: any) => {
+        if (symbolizer.kind === "Icon" && symbolizer.image) {
+          return {
+            ...symbolizer,
+            image: proxyExternalImageUrl(symbolizer.image),
+          };
+        }
+        return symbolizer;
+      }),
+    })),
+  };
+}
+
 export const generateOlStyle = async (
   geostylerStyle: GeoStylerStyle,
   showUnmatched: boolean = false
@@ -121,6 +152,9 @@ export const generateOlStyle = async (
       ],
     };
   }
+
+  // Add proxy to external image URLs to avoid CORS issues
+  styleToConvert = addProxyToIconSymbolizers(styleToConvert);
 
   const { output: olStyle } = await olParser.writeStyle(styleToConvert);
   return olStyle as StyleLike;

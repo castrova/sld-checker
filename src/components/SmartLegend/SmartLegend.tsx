@@ -87,7 +87,19 @@ const SmartLegend: React.FC<SmartLegendProps> = ({
       border: "1px solid #ccc",
     };
 
-    if (sym.kind === "Mark" || sym.kind === "Icon") {
+    if (sym.kind === "Icon") {
+      return (
+        <img
+          src={sym.image}
+          alt="icon"
+          style={{
+            width: sym.size || 20,
+            height: sym.size || 20,
+            objectFit: "contain",
+          }}
+        />
+      );
+    } else if (sym.kind === "Mark") {
       style.borderRadius = "50%";
       style.backgroundColor = sym.color || "#000";
     } else if (sym.kind === "Fill") {
