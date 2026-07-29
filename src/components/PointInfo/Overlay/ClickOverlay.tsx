@@ -8,7 +8,6 @@ import InfoIcon from "@mui/icons-material/Info";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import CancelIcon from "@mui/icons-material/Cancel";
 import MyLocationIcon from "@mui/icons-material/MyLocation";
-import Draggable from "react-draggable";
 import { t } from "../../../i18n";
 import styles from "./ClickOverlay.module.css";
 import type { ClickInfo } from "../../../features/map/mapSlice";
@@ -18,10 +17,12 @@ import GeoJSON from "ol/format/GeoJSON";
 import { Circle as CircleStyle, Fill, Stroke, Style } from "ol/style";
 import type { SldRuleStats } from "../../../utils/sldUtils";
 import { evaluateFilter } from "../../../utils/sldUtils";
+import type { Overlay } from "ol";
 
 interface ClickOverlayProps {
   clickInfo: ClickInfo | null;
   mapInstance: React.RefObject<any>;
+  overlayRef: React.RefObject<Overlay | null>;
   language: import("../../../i18n").Language;
   onClose: () => void;
   stylingFields?: string[];
@@ -32,6 +33,7 @@ interface ClickOverlayProps {
 const ClickOverlay: React.FC<ClickOverlayProps> = ({
   clickInfo,
   mapInstance,
+  overlayRef,
   language,
   onClose,
   stylingFields,
@@ -39,8 +41,13 @@ const ClickOverlay: React.FC<ClickOverlayProps> = ({
   setHighlightedRuleIndex,
 }) => {
   const [currentIndex, setCurrentIndex] = React.useState(0);
-  const nodeRef = React.useRef(null);
   const highlightLayerRef = React.useRef<VectorLayer | null>(null);
+  const dragState = React.useRef<{
+    dragging: boolean;
+    startClientX: number;
+    startClientY: number;
+    startCoord: number[] | null;
+  }>({ dragging: false, startClientX: 0, startClientY: 0, startCoord: null });
 
   // Derive safeIndex BEFORE any useEffect hooks reference it
   const safeIndex =
@@ -77,7 +84,7 @@ const ClickOverlay: React.FC<ClickOverlayProps> = ({
             }),
           }),
         }),
-        zIndex: 9999, // Ensure it's on top
+        zIndex: 9999,
         properties: { ignoreClick: true },
       });
       mapInstance.current.addLayer(highlightLayerRef.current);
@@ -146,6 +153,61 @@ const ClickOverlay: React.FC<ClickOverlayProps> = ({
     setHighlightedRuleIndex(matchingRuleIndex);
   }, [safeIndex, clickInfo, rules, setHighlightedRuleIndex]);
 
+  // Drag handlers - move overlay using setPosition
+  const handleHeaderMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!overlayRef.current || !mapInstance?.current) return;
+    const startPos = overlayRef.current.getPosition();
+    if (!startPos) return;
+    dragState.current.dragging = true;
+    dragState.current.startClientX = e.clientX;
+    dragState.current.startClientY = e.clientY;
+    dragState.current.startCoord = [startPos[0], startPos[1]];
+  };
+
+  React.useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (
+        !dragState.current.dragging ||
+        !mapInstance?.current ||
+        !overlayRef.current
+      )
+        return;
+      if (!dragState.current.startCoord) return;
+
+      // Calculate pixel delta
+      const dx = e.clientX - dragState.current.startClientX;
+      const dy = e.clientY - dragState.current.startClientY;
+
+      // Convert start coordinate to pixel
+      const startPixel = mapInstance.current.getPixelFromCoordinate(
+        dragState.current.startCoord,
+      );
+      if (!startPixel) return;
+
+      // Apply delta to get new pixel
+      const newPixel = [startPixel[0] + dx, startPixel[1] + dy];
+
+      // Convert new pixel back to map coordinate
+      const newCoord = mapInstance.current.getCoordinateFromPixel(newPixel);
+      if (newCoord) {
+        overlayRef.current.setPosition(newCoord);
+      }
+    };
+
+    const handleMouseUp = () => {
+      dragState.current.dragging = false;
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [mapInstance, overlayRef]);
+
   if (!clickInfo || !mapInstance?.current || clickInfo.features.length === 0)
     return null;
 
@@ -181,165 +243,157 @@ const ClickOverlay: React.FC<ClickOverlayProps> = ({
       value !== "" &&
       key !== "_unmatched" &&
       key !== "_highlighted" &&
+      key !== "geometry" &&
+      !key.endsWith("Property") &&
+      typeof value !== "object" &&
       (!stylingFields || !stylingFields.includes(key)),
   );
 
   return (
-    <Draggable handle={`.${styles.header}`} nodeRef={nodeRef}>
-      <Paper className={styles.overlay} ref={nodeRef} elevation={0}>
-        <div className={styles.header}>
-          <div className={styles.headerTitle}>
-            <InfoIcon fontSize="small" />
-            {t(language, "pointInfo")}
+    <Paper className={styles.overlay} elevation={0}>
+      <div className={styles.header} onMouseDown={handleHeaderMouseDown}>
+        <div className={styles.headerTitle}>
+          <InfoIcon fontSize="small" />
+          {t(language, "pointInfo")}
+        </div>
+        <IconButton
+          className={styles.closeButton}
+          onClick={onClose}
+          size="small"
+          aria-label={t(language, "close")}
+        >
+          <CloseIcon fontSize="small" />
+        </IconButton>
+      </div>
+
+      <div className={styles.content}>
+        {/* Coordinate Section */}
+        <div className={styles.coordsSection}>
+          <div className={styles.coordRow}>
+            <MyLocationIcon
+              fontSize="small"
+              sx={{ color: "#1976d2", fontSize: "0.9rem" }}
+            />
+            <span className={styles.coordLabel}>{t(language, "coords")}:</span>
+            <span className={styles.coordValue}>
+              {clickInfo.coordinates[0].toFixed(2)},{" "}
+              {clickInfo.coordinates[1].toFixed(2)}
+              <span className={styles.coordProjection}>EPSG:3857</span>
+            </span>
           </div>
-          <IconButton
-            className={styles.closeButton}
-            onClick={onClose}
-            size="small"
-            aria-label={t(language, "close")}
-          >
-            <CloseIcon fontSize="small" />
-          </IconButton>
+          <div className={styles.coordRow}>
+            <span className={styles.coordLabel} style={{ marginLeft: "20px" }}>
+              {t(language, "latLon")}:
+            </span>
+            <span className={styles.coordValue}>
+              {clickInfo.latLon[0].toFixed(6)}, {clickInfo.latLon[1].toFixed(6)}
+              <span className={styles.coordProjection}>EPSG:4326</span>
+            </span>
+          </div>
         </div>
 
-        <div className={styles.content}>
-          {/* Coordinate Section */}
-          <div className={styles.coordsSection}>
-            <div className={styles.coordRow}>
-              <MyLocationIcon
-                fontSize="small"
-                sx={{ color: "#1976d2", fontSize: "0.9rem" }}
-              />
-              <span className={styles.coordLabel}>
-                {t(language, "coords")}:
-              </span>
-              <span className={styles.coordValue}>
-                {clickInfo.coordinates[0].toFixed(2)},{" "}
-                {clickInfo.coordinates[1].toFixed(2)}
-                <span className={styles.coordProjection}>EPSG:3857</span>
-              </span>
-            </div>
-            <div className={styles.coordRow}>
-              <span
-                className={styles.coordLabel}
-                style={{ marginLeft: "20px" }}
-              >
-                {t(language, "latLon")}:
-              </span>
-              <span className={styles.coordValue}>
-                {clickInfo.latLon[0].toFixed(6)},{" "}
-                {clickInfo.latLon[1].toFixed(6)}
-                <span className={styles.coordProjection}>EPSG:4326</span>
-              </span>
-            </div>
+        {/* Feature Navigation */}
+        {clickInfo.features.length > 1 && (
+          <div className={styles.sliderHeader}>
+            <IconButton
+              className={styles.navButton}
+              onClick={handlePrev}
+              size="small"
+            >
+              <NavigateBeforeIcon fontSize="small" />
+            </IconButton>
+            <span className={styles.sliderCounter}>
+              {t(language, "feature")} {safeIndex + 1} /{" "}
+              {clickInfo.features.length}
+            </span>
+            <IconButton
+              className={styles.navButton}
+              onClick={handleNext}
+              size="small"
+            >
+              <NavigateNextIcon fontSize="small" />
+            </IconButton>
           </div>
+        )}
 
-          {/* Feature Navigation */}
-          {clickInfo.features.length > 1 && (
-            <div className={styles.sliderHeader}>
-              <IconButton
-                className={styles.navButton}
-                onClick={handlePrev}
-                size="small"
-              >
-                <NavigateBeforeIcon fontSize="small" />
-              </IconButton>
-              <span className={styles.sliderCounter}>
-                {t(language, "feature")} {safeIndex + 1} /{" "}
-                {clickInfo.features.length}
-              </span>
-              <IconButton
-                className={styles.navButton}
-                onClick={handleNext}
-                size="small"
-              >
-                <NavigateNextIcon fontSize="small" />
-              </IconButton>
-            </div>
-          )}
-
-          {/* Rule Badge */}
-          {rules && rules.length > 0 && (
-            <div
-              className={`${styles.ruleBadge} ${
-                matchingRule
-                  ? styles.ruleBadgeMatched
-                  : styles.ruleBadgeUnmatched
-              }`}
-            >
-              {matchingRule ? (
-                <>
-                  <CheckCircleIcon sx={{ fontSize: "0.9rem" }} />
-                  {t(language, "matchedRule")}: {matchingRule.ruleName}
-                </>
-              ) : (
-                <>
-                  <CancelIcon sx={{ fontSize: "0.9rem" }} />
-                  {t(language, "noMatchedRule")}
-                </>
-              )}
-            </div>
-          )}
-
-          {/* Unmatched Warning */}
-          {isUnmatched && (
-            <div
-              className={`${styles.ruleBadge} ${styles.ruleBadgeUnmatched}`}
-              style={{ marginTop: 8 }}
-            >
-              <CancelIcon sx={{ fontSize: "0.9rem" }} />
-              {t(language, "unmatchedWarning")}
-            </div>
-          )}
-
-          {/* Styling Properties Section */}
-          {stylingFields && stylingFields.length > 0 && (
-            <div className={styles.stylingSection}>
-              <div className={styles.sectionTitle}>
-                {t(language, "stylingProperties")}
-              </div>
-              {stylingFields.map((field) => {
-                const value = currentFeature?.properties[field];
-                if (value === undefined) return null;
-                return (
-                  <div key={field} className={styles.stylingField}>
-                    <span className={styles.stylingFieldName}>{field}</span>
-                    <span className={styles.stylingFieldValue}>
-                      {String(value)}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {/* General Properties Section */}
-          <div className={styles.propertiesSection}>
-            <div className={styles.sectionTitle}>
-              {t(language, "properties")}
-            </div>
-            {generalProperties.length > 0 ? (
-              <div className={styles.propertiesGrid}>
-                {generalProperties.map(([key, value]) => (
-                  <div key={key} className={styles.propertyRow}>
-                    <span className={styles.propertyKey}>{key}</span>
-                    <span className={styles.propertyValue}>
-                      {typeof value === "object"
-                        ? JSON.stringify(value)
-                        : String(value)}
-                    </span>
-                  </div>
-                ))}
-              </div>
+        {/* Rule Badge */}
+        {rules && rules.length > 0 && (
+          <div
+            className={`${styles.ruleBadge} ${
+              matchingRule ? styles.ruleBadgeMatched : styles.ruleBadgeUnmatched
+            }`}
+          >
+            {matchingRule ? (
+              <>
+                <CheckCircleIcon sx={{ fontSize: "0.9rem" }} />
+                {t(language, "matchedRule")}: {matchingRule.ruleName}
+              </>
             ) : (
-              <div className={styles.noProperties}>
-                {t(language, "noProperties")}
-              </div>
+              <>
+                <CancelIcon sx={{ fontSize: "0.9rem" }} />
+                {t(language, "noMatchedRule")}
+              </>
             )}
           </div>
+        )}
+
+        {/* Unmatched Warning */}
+        {isUnmatched && (
+          <div
+            className={`${styles.ruleBadge} ${styles.ruleBadgeUnmatched}`}
+            style={{ marginTop: 8 }}
+          >
+            <CancelIcon sx={{ fontSize: "0.9rem" }} />
+            {t(language, "unmatchedWarning")}
+          </div>
+        )}
+
+        {/* Styling Properties Section */}
+        {stylingFields && stylingFields.length > 0 && (
+          <div className={styles.stylingSection}>
+            <div className={styles.sectionTitle}>
+              {t(language, "stylingProperties")}
+            </div>
+            {stylingFields.map((field) => {
+              const value = currentFeature?.properties[field];
+              if (value === undefined || value === null) return null;
+              if (typeof value === "object") return null;
+              return (
+                <div key={field} className={styles.stylingField}>
+                  <span className={styles.stylingFieldName}>{field}</span>
+                  <span className={styles.stylingFieldValue}>
+                    {String(value)}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* General Properties Section */}
+        <div className={styles.propertiesSection}>
+          <div className={styles.sectionTitle}>{t(language, "properties")}</div>
+          {generalProperties.length > 0 ? (
+            <div className={styles.propertiesGrid}>
+              {generalProperties.map(([key, value]) => (
+                <div key={key} className={styles.propertyRow}>
+                  <span className={styles.propertyKey}>{key}</span>
+                  <span className={styles.propertyValue}>
+                    {typeof value === "object"
+                      ? JSON.stringify(value)
+                      : String(value)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className={styles.noProperties}>
+              {t(language, "noProperties")}
+            </div>
+          )}
         </div>
-      </Paper>
-    </Draggable>
+      </div>
+    </Paper>
   );
 };
 

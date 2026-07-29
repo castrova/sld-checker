@@ -520,7 +520,9 @@ const App: React.FC = () => {
                           (k) =>
                             k !== "geometry" &&
                             k !== "_unmatched" &&
-                            k !== "_highlighted",
+                            k !== "_highlighted" &&
+                            !k.endsWith("Property") &&
+                            typeof features[0].getProperties()[k] !== "object",
                         )
                         .map((k) => (
                           <TableCell
@@ -555,10 +557,12 @@ const App: React.FC = () => {
                         </TableCell>
                         {Object.entries(f.getProperties())
                           .filter(
-                            ([k]) =>
+                            ([k, v]) =>
                               k !== "geometry" &&
                               k !== "_unmatched" &&
-                              k !== "_highlighted",
+                              k !== "_highlighted" &&
+                              !k.endsWith("Property") &&
+                              typeof v !== "object",
                           )
                           .map(([k, v]) => (
                             <TableCell

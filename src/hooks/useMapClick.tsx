@@ -43,7 +43,6 @@ export const useMapClick = (
   setHighlightedRuleIndexRef.current = setHighlightedRuleIndex;
 
   const cleanupOverlay = useCallback(() => {
-    console.log("Cleaning up overlay");
     dispatch(setClickInfo(null));
     if (overlayRef.current) overlayRef.current.setPosition(undefined);
     if (activeRootRef.current) activeRootRef.current.render(<React.Fragment />);
@@ -56,12 +55,15 @@ export const useMapClick = (
 
     if (!overlayContainerRef.current) {
       overlayContainerRef.current = document.createElement("div");
-      overlayContainerRef.current.style.pointerEvents = "auto";
       overlayRef.current = new Overlay({
         element: overlayContainerRef.current,
         positioning: "bottom-center",
         stopEvent: true,
         offset: [0, -10],
+        autoPan: {
+          animation: { duration: 250 },
+          margin: 20,
+        },
       });
       mapInstance.addOverlay(overlayRef.current);
       activeRootRef.current = createRoot(overlayContainerRef.current);
@@ -84,14 +86,12 @@ export const useMapClick = (
     }
 
     const handleSingleClick = (evt: any) => {
-      console.log("Map clicked at", evt.coordinate);
       const coordinates = evt.coordinate;
       const latLon = transform(coordinates, "EPSG:3857", "EPSG:4326");
 
       const features = mapInstance.getFeaturesAtPixel(evt.pixel, {
         hitTolerance: 10,
       });
-      console.log("Found features count:", features?.length);
 
       if (!features || features.length === 0) {
         cleanupOverlay();
@@ -125,8 +125,6 @@ export const useMapClick = (
           };
         });
 
-      console.log("Filtered features count:", clickInfoFeatures.length);
-
       if (clickInfoFeatures.length === 0) {
         cleanupOverlay();
         return;
@@ -151,11 +149,23 @@ export const useMapClick = (
       }
 
       if (overlayRef.current && activeRootRef.current) {
+        // Adjust overlay positioning based on click location
+        const pixel = mapInstance.getPixelFromCoordinate(coordinates);
+        const mapSize = mapInstance.getSize();
+        const overlayApproxHeight = 400;
+        if (pixel && mapSize && pixel[1] - overlayApproxHeight < 0) {
+          overlayRef.current.setPositioning("top-center");
+          overlayRef.current.setOffset([0, 10]);
+        } else {
+          overlayRef.current.setPositioning("bottom-center");
+          overlayRef.current.setOffset([0, -10]);
+        }
         overlayRef.current.setPosition(coordinates);
         activeRootRef.current.render(
           <ClickOverlay
             clickInfo={clickInfo}
             mapInstance={{ current: mapInstance }}
+            overlayRef={overlayRef}
             language={languageRef.current as any}
             onClose={cleanupOverlay}
             stylingFields={stylingFieldsRef.current}
