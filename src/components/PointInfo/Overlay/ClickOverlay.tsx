@@ -40,6 +40,17 @@ const ClickOverlay: React.FC<ClickOverlayProps> = ({
   const nodeRef = React.useRef(null);
   const highlightLayerRef = React.useRef<VectorLayer | null>(null);
 
+  // Derive safeIndex BEFORE any useEffect hooks reference it
+  const safeIndex =
+    clickInfo && clickInfo.features.length > 0
+      ? Math.min(Math.max(0, currentIndex), clickInfo.features.length - 1)
+      : 0;
+
+  // Reset currentIndex when clickInfo changes
+  React.useEffect(() => {
+    setCurrentIndex(0);
+  }, [clickInfo]);
+
   React.useEffect(() => {
     if (!mapInstance?.current) return;
 
@@ -75,7 +86,7 @@ const ClickOverlay: React.FC<ClickOverlayProps> = ({
     source?.clear();
 
     if (clickInfo && clickInfo.features.length > 0) {
-      const currentFeature = clickInfo.features[currentIndex];
+      const currentFeature = clickInfo.features[safeIndex];
       if (currentFeature && currentFeature.geometry) {
         const feature = new GeoJSON().readFeature(
           {
@@ -86,7 +97,7 @@ const ClickOverlay: React.FC<ClickOverlayProps> = ({
           {
             dataProjection: "EPSG:3857",
             featureProjection: "EPSG:3857",
-          }
+          },
         );
         source?.addFeature(feature);
       }
@@ -95,7 +106,7 @@ const ClickOverlay: React.FC<ClickOverlayProps> = ({
     return () => {
       // Cleanup handled by the other useEffect
     };
-  }, [currentIndex, clickInfo, mapInstance]);
+  }, [safeIndex, clickInfo, mapInstance]);
 
   // Cleanup layer on unmount
   React.useEffect(() => {
@@ -107,7 +118,7 @@ const ClickOverlay: React.FC<ClickOverlayProps> = ({
     };
   }, [mapInstance]);
 
-  // Update highlighted rule when currentIndex changes
+  // Update highlighted rule when safeIndex changes
   React.useEffect(() => {
     if (
       !rules ||
@@ -118,7 +129,9 @@ const ClickOverlay: React.FC<ClickOverlayProps> = ({
       return;
     }
 
-    const currentFeature = clickInfo.features[currentIndex];
+    const currentFeature = clickInfo.features[safeIndex];
+    if (!currentFeature || !currentFeature.properties) return;
+
     let matchingRuleIndex: number | null = null;
 
     for (let i = 0; i < rules.length; i++) {
@@ -129,9 +142,9 @@ const ClickOverlay: React.FC<ClickOverlayProps> = ({
     }
 
     setHighlightedRuleIndex(matchingRuleIndex);
-  }, [currentIndex, clickInfo, rules, setHighlightedRuleIndex]);
+  }, [safeIndex, clickInfo, rules, setHighlightedRuleIndex]);
 
-  if (!clickInfo || !mapInstance?.current) return null;
+  if (!clickInfo || !mapInstance?.current || clickInfo.features.length === 0) return null;
 
   const handleNext = () => {
     setCurrentIndex((prev) => (prev + 1) % clickInfo.features.length);
@@ -140,11 +153,12 @@ const ClickOverlay: React.FC<ClickOverlayProps> = ({
   const handlePrev = () => {
     setCurrentIndex(
       (prev) =>
-        (prev - 1 + clickInfo.features.length) % clickInfo.features.length
+        (prev - 1 + clickInfo.features.length) % clickInfo.features.length,
     );
   };
 
-  const currentFeature = clickInfo.features[currentIndex];
+  const currentFeature = clickInfo.features[safeIndex];
+  if (!currentFeature) return null;
 
   return (
     <Draggable handle={`.${styles.header}`} nodeRef={nodeRef}>
@@ -248,7 +262,7 @@ const ClickOverlay: React.FC<ClickOverlayProps> = ({
                         value !== null &&
                         value !== undefined &&
                         value !== "" &&
-                        (!stylingFields || !stylingFields.includes(key)) // Exclude styling fields from general list
+                        (!stylingFields || !stylingFields.includes(key)), // Exclude styling fields from general list
                     )
                     .map(([key, value]) => (
                       <Typography key={key} variant="body2">

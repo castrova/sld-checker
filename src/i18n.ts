@@ -6,7 +6,7 @@ export const translations: Record<Language, Record<string, string>> = {
     scale: "Escala",
     active: "Activo",
     allFeaturesStyled: "Todos los elementos están estilizados",
-    unmatchedFeatures: "Elementos no estilizados",
+    unmatchedFeatures: "Elementos no coincidentes",
     stylingProperties: "Propiedades de estilizado",
     noLayers: "No hay capas cargadas",
     transparency: "Transparencia",
@@ -36,13 +36,13 @@ export const translations: Record<Language, Record<string, string>> = {
     op_not: "NO",
     showUnmatched: "Mostrar no coincidentes",
     unmatchedWarning: "Elemento no estilizado por SLD",
-    appTitle: "Verificador SLD",
+    appTitle: "SLD Checker",
     errorLoadingProject: "Error al cargar el proyecto",
     noFeaturesFound: "No se encontraron elementos en el archivo de capa",
     unsupportedFormat: "Formato de archivo no soportado",
     loadProject: "Cargar Proyecto",
     loadProjectDesc:
-      "Selecciona una capa de datos y un archivo de estilo SLD para comenzar.",
+      "Selecciona una capa de datos (GeoJSON, KML, GML) y un estilo SLD para comenzar.",
     selectLayer: "Seleccionar Capa",
     selectSLD: "Seleccionar SLD",
     loadMap: "Cargar Mapa",
@@ -50,6 +50,20 @@ export const translations: Record<Language, Record<string, string>> = {
     latLon: "Lat/Lon",
     feature: "Elemento",
     properties: "Propiedades",
+    sldEditor: "Editor SLD",
+    applyStyle: "Aplicar Estilo",
+    downloadSLD: "Descargar SLD",
+    styleApplied: "Estilo aplicado con éxito",
+    errorApplyingStyle: "Error al aplicar estilo",
+    projectLoadedSuccess: "Proyecto cargado con éxito",
+    attributeTable: "Tabla de Atributos",
+    exportImage: "Exportar Imagen",
+    actions: "Acciones",
+    inspectFeature: "Inspeccionar elemento",
+    osm: "Mapa Base OSM",
+    satellite: "Satélite",
+    dark: "Oscuro",
+    light: "Claro",
   },
   en: {
     legend: "Legend",
@@ -91,7 +105,7 @@ export const translations: Record<Language, Record<string, string>> = {
     noFeaturesFound: "No features found in layer file",
     unsupportedFormat: "Unsupported file format",
     loadProject: "Load Project",
-    loadProjectDesc: "Select a data layer and an SLD style file to begin.",
+    loadProjectDesc: "Select a data layer (GeoJSON, KML, GML) and an SLD style file to begin.",
     selectLayer: "Select Layer",
     selectSLD: "Select SLD",
     loadMap: "Load Map",
@@ -99,9 +113,25 @@ export const translations: Record<Language, Record<string, string>> = {
     latLon: "Lat/Lon",
     feature: "Feature",
     properties: "Properties",
+    sldEditor: "SLD Editor",
+    applyStyle: "Apply Style",
+    downloadSLD: "Download SLD",
+    styleApplied: "Style applied successfully",
+    errorApplyingStyle: "Error applying style",
+    projectLoadedSuccess: "Project loaded successfully",
+    attributeTable: "Attribute Table",
+    exportImage: "Export Image",
+    actions: "Actions",
+    inspectFeature: "Inspect Feature",
+    osm: "OSM Base Map",
+    satellite: "Satellite",
+    dark: "Dark",
+    light: "Light",
   },
 };
 
-export function t(lang: Language, key: string): string {
-  return translations[lang][key] || key;
+export type TranslationKey = keyof typeof translations.en;
+
+export function t(lang: Language, key: string | TranslationKey): string {
+  return translations[lang][key as TranslationKey] || translations["en"][key as TranslationKey] || key;
 }

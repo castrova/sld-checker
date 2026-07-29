@@ -1,18 +1,6 @@
 import { createSlice } from "@reduxjs/toolkit";
 import type { PayloadAction } from "@reduxjs/toolkit";
 
-export interface LayerMeta {
-  id: string;
-  name: string;
-  geojson: object;
-  style: {
-    fillColor: string;
-    strokeColor: string;
-    strokeWidth: number;
-    borderType: string;
-  };
-}
-
 export interface ClickInfo {
   coordinates: number[]; // Projected coordinates (EPSG:3857)
   latLon: number[]; // Lat/lon coordinates (EPSG:4326)
@@ -26,14 +14,18 @@ export interface ClickInfo {
 
 export interface MapState {
   center: [number, number];
-  layers: LayerMeta[];
   clickInfo: ClickInfo | null;
+  highlightedRuleIndex: number | null;
+  hoveredRuleIndex: number | null;
+  baseMap: "osm" | "satellite" | "dark" | "light";
 }
 
 const initialState: MapState = {
   center: [-3.7038, 40.4168], // Spain (Madrid)
-  layers: [],
   clickInfo: null,
+  highlightedRuleIndex: null,
+  hoveredRuleIndex: null,
+  baseMap: "osm",
 };
 
 export const mapSlice = createSlice({
@@ -43,36 +35,26 @@ export const mapSlice = createSlice({
     setCenter: (state, action: PayloadAction<[number, number]>) => {
       state.center = action.payload;
     },
-    addLayer: (state, action: PayloadAction<LayerMeta>) => {
-      state.layers.push(action.payload);
-    },
-    removeLayer: (state, action: PayloadAction<number>) => {
-      state.layers.splice(action.payload, 1);
-    },
-    updateLayerStyle: (
-      state,
-      action: PayloadAction<{ id: string; style: LayerMeta["style"] }>
-    ) => {
-      const idx = state.layers.findIndex((l) => l.id === action.payload.id);
-      if (idx !== -1) {
-        state.layers[idx].style = action.payload.style;
-      }
-    },
-    setLayersOrder: (state, action: PayloadAction<LayerMeta[]>) => {
-      state.layers = action.payload;
-    },
     setClickInfo: (state, action: PayloadAction<ClickInfo | null>) => {
       state.clickInfo = action.payload;
+    },
+    setHighlightedRuleIndex: (state, action: PayloadAction<number | null>) => {
+      state.highlightedRuleIndex = action.payload;
+    },
+    setHoveredRuleIndex: (state, action: PayloadAction<number | null>) => {
+      state.hoveredRuleIndex = action.payload;
+    },
+    setBaseMap: (state, action: PayloadAction<MapState["baseMap"]>) => {
+      state.baseMap = action.payload;
     },
   },
 });
 
 export const {
   setCenter,
-  addLayer,
-  removeLayer,
-  updateLayerStyle,
-  setLayersOrder,
   setClickInfo,
+  setHighlightedRuleIndex,
+  setHoveredRuleIndex,
+  setBaseMap,
 } = mapSlice.actions;
 export default mapSlice.reducer;

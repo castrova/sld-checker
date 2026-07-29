@@ -14,30 +14,20 @@ export interface SldRuleStats {
   scaleDenominator?: { min?: number; max?: number };
 }
 
-// Helper to extract property names from a Geostyler filter
+/**
+ * Helper to extract property names from a Geostyler filter.
+ */
 const extractFilterFields = (filter: any): string[] => {
   if (!filter || !Array.isArray(filter)) return [];
-
-  const operator = filter[0];
   const fields: Set<string> = new Set();
-
-  // Recursive extraction based on operator type
-  // This covers standard Geostyler comparison operators where the second argument is property name
-  // e.g. ['==', 'propName', 'value']
-  if (
-    ["==", "!=", ">", ">=", "<", "<=", "*="].includes(operator) &&
-    typeof filter[1] === "string"
-  ) {
-    fields.add(filter[1]);
-  } else if (["&&", "||", "!"].includes(operator)) {
-    // Logical operators, recurse into children
+  const operator = filter[0];
+  if (["&&", "||", "!"].includes(operator)) {
     for (let i = 1; i < filter.length; i++) {
-      const childFields = extractFilterFields(filter[i]);
-      childFields.forEach((f) => fields.add(f));
+      extractFilterFields(filter[i]).forEach((f) => fields.add(f));
     }
+  } else if (typeof filter[1] === "string") {
+    fields.add(filter[1]);
   }
-  // TODO: Handle other complex cases like functions if needed
-
   return Array.from(fields);
 };
 
@@ -50,64 +40,59 @@ export interface SldAnalysisResult {
   stylingFields: string[];
 }
 
-// Helper to evaluate a Geostyler filter against feature properties
+/**
+ * Helper to evaluate a Geostyler filter against feature properties.
+ */
 export const evaluateFilter = (filter: any, properties: any): boolean => {
-  if (!filter) return true; // No filter means match all
-  if (!Array.isArray(filter)) return true; // Unknown format, assume match
+  if (!filter) return true;
+  if (!Array.isArray(filter)) return true;
 
   const operator = filter[0];
-
   switch (operator) {
-    case "&&":
-      return filter.slice(1).every((f: any) => evaluateFilter(f, properties));
-    case "||":
-      return filter.slice(1).some((f: any) => evaluateFilter(f, properties));
-    case "!":
-      return !evaluateFilter(filter[1], properties);
-    case "==":
-      return properties[filter[1]] == filter[2];
-    case "!=":
-      return properties[filter[1]] != filter[2];
-    case ">":
-      return properties[filter[1]] > filter[2];
-    case ">=":
-      return properties[filter[1]] >= filter[2];
-    case "<":
-      return properties[filter[1]] < filter[2];
-    case "<=":
-      return properties[filter[1]] <= filter[2];
-    // Add more operators as needed (e.g. string functions, math)
-    // Geostyler also supports 'PropertyIsEqualTo' etc. in some versions, but usually normalized to array
-    default:
-      // console.warn("Unknown filter operator:", operator);
+    case "&&": return filter.slice(1).every((f: any) => evaluateFilter(f, properties));
+    case "||": return filter.slice(1).some((f: any) => evaluateFilter(f, properties));
+    case "!": return !evaluateFilter(filter[1], properties);
+    case "==": return properties[filter[1]] === filter[2];
+    case "!=": return properties[filter[1]] !== filter[2];
+    case ">": return properties[filter[1]] > filter[2];
+    case ">=": return properties[filter[1]] >= filter[2];
+    case "<": return properties[filter[1]] < filter[2];
+    case "<=": return properties[filter[1]] <= filter[2];
+    case "*=":
+      if (typeof properties[filter[1]] === "string" && typeof filter[2] === "string") {
+        return properties[filter[1]].toLowerCase().includes(filter[2].toLowerCase());
+      }
       return false;
+    case "~=":
+      if (typeof properties[filter[1]] === "string" && typeof filter[2] === "string") {
+        try { return new RegExp(filter[2]).test(properties[filter[1]]); } catch { return false; }
+      }
+      return false;
+    default: return false;
   }
 };
 
-// Helper to proxy external image URLs to avoid CORS issues
+/**
+ * Helper to proxy external image URLs to avoid CORS issues.
+ */
 function proxyExternalImageUrl(url: string): string {
-  // Only proxy external URLs (not data URLs or relative paths)
   if (url.startsWith("http://") || url.startsWith("https://")) {
-    // Using corsproxy.io as a CORS proxy
     return `https://corsproxy.io/?${encodeURIComponent(url)}`;
   }
   return url;
 }
 
-// Helper to modify IconSymbolizers to use proxied URLs
-function addProxyToIconSymbolizers(
-  geostylerStyle: GeoStylerStyle
-): GeoStylerStyle {
+/**
+ * Helper to modify IconSymbolizers to use proxied URLs.
+ */
+function addProxyToIconSymbolizers(geostylerStyle: GeoStylerStyle): GeoStylerStyle {
   return {
     ...geostylerStyle,
     rules: geostylerStyle.rules.map((rule) => ({
       ...rule,
       symbolizers: rule.symbolizers?.map((symbolizer: any) => {
         if (symbolizer.kind === "Icon" && symbolizer.image) {
-          return {
-            ...symbolizer,
-            image: proxyExternalImageUrl(symbolizer.image),
-          };
+          return { ...symbolizer, image: proxyExternalImageUrl(symbolizer.image) };
         }
         return symbolizer;
       }),
@@ -115,81 +100,75 @@ function addProxyToIconSymbolizers(
   };
 }
 
+/**
+ * Generates an OpenLayers style from a Geostyler style.
+ */
 export const generateOlStyle = async (
   geostylerStyle: GeoStylerStyle,
   showUnmatched: boolean = false
 ): Promise<StyleLike | null> => {
   let styleToConvert = geostylerStyle;
 
+  const rules = [...geostylerStyle.rules];
+
+  // Add highlight rule (high priority)
+  rules.unshift({
+    name: "Highlighted",
+    filter: ["==", "_highlighted", true],
+    symbolizers: [
+      {
+        kind: "Line",
+        color: "#00FFFF",
+        width: 4,
+      },
+      {
+        kind: "Mark",
+        wellKnownName: "circle",
+        color: "#00FFFF",
+        radius: 8,
+        strokeColor: "#FFFFFF",
+        strokeWidth: 2
+      }
+    ]
+  } as any);
+
   if (showUnmatched) {
-    // Clone to avoid mutating original
-    styleToConvert = {
-      ...geostylerStyle,
-      rules: [
-        ...geostylerStyle.rules,
-        {
-          name: "Unmatched",
-          filter: ["==", "_unmatched", true],
-          symbolizers: [
-            {
-              kind: "Mark",
-              wellKnownName: "circle",
-              color: "#FF0000",
-              radius: 5,
-            },
-            {
-              kind: "Line",
-              color: "#FF0000",
-              width: 2,
-            },
-            {
-              kind: "Fill",
-              color: "#FF0000",
-              outlineColor: "#FF0000",
-            },
-          ],
-        } as any,
+    rules.push({
+      name: "Unmatched",
+      filter: ["==", "_unmatched", true],
+      symbolizers: [
+        { kind: "Mark", wellKnownName: "circle", color: "#FF0000", radius: 5 },
+        { kind: "Line", color: "#FF0000", width: 2 },
+        { kind: "Fill", color: "#FF0000", outlineColor: "#FF0000" },
       ],
-    };
+    } as any);
   }
 
-  // Add proxy to external image URLs to avoid CORS issues
+  styleToConvert = { ...geostylerStyle, rules };
   styleToConvert = addProxyToIconSymbolizers(styleToConvert);
 
   const { output: olStyle } = await olParser.writeStyle(styleToConvert);
   return olStyle as StyleLike;
 };
 
+/**
+ * Parses an SLD string and analyzes its rules against a set of features.
+ */
 export const parseSldAndAnalyze = async (
   sldContent: string,
-  features: any[] // Array of OL features
+  features: any[]
 ): Promise<SldAnalysisResult> => {
-  // 1. Parse SLD to Geostyler Style
-  const { output: geostylerStyle, errors } = await sldParser.readStyle(
-    sldContent
-  );
-
+  const { output: geostylerStyle, errors } = await sldParser.readStyle(sldContent);
   if (errors || !geostylerStyle) {
-    throw new Error(
-      "Failed to parse SLD: " + (errors ? errors.join(", ") : "Unknown error")
-    );
+    throw new Error("Failed to parse SLD: " + (errors ? errors.join(", ") : "Unknown error"));
   }
 
-  // 2. Convert to OpenLayers Style
   const olStyle = await generateOlStyle(geostylerStyle);
+  if (!olStyle) throw new Error("Failed to convert style to OpenLayers format");
 
-  if (!olStyle) {
-    throw new Error("Failed to convert style to OpenLayers format");
-  }
-
-  // 3. Analyze Rules against Features
   const stylingFieldsSet = new Set<string>();
-
-  const rules = geostylerStyle.rules.map((rule: Rule) => {
-    // Extract fields from this rule's filter
-    const fields = extractFilterFields(rule.filter);
-    fields.forEach((f) => stylingFieldsSet.add(f));
-
+  const rules: SldRuleStats[] = geostylerStyle.rules.map((rule: Rule) => {
+    extractFilterFields(rule.filter).forEach((f) => stylingFieldsSet.add(f));
     return {
       ruleName: rule.name || "Untitled Rule",
       count: 0,
@@ -200,18 +179,15 @@ export const parseSldAndAnalyze = async (
   });
 
   let unmatchedCount = 0;
-
   features.forEach((feature) => {
     const properties = feature.getProperties();
     let matched = false;
-
-    rules.forEach((rule) => {
-      if (evaluateFilter(rule.filter, properties)) {
-        rule.count++;
+    for (let i = 0; i < rules.length; i++) {
+      if (evaluateFilter(rules[i].filter, properties)) {
+        rules[i].count++;
         matched = true;
       }
-    });
-
+    }
     if (!matched) {
       unmatchedCount++;
       feature.set("_unmatched", true);
@@ -221,7 +197,7 @@ export const parseSldAndAnalyze = async (
   });
 
   return {
-    olStyle: olStyle as StyleLike,
+    olStyle,
     rules,
     unmatchedCount,
     totalFeatures: features.length,
