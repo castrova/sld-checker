@@ -17,7 +17,7 @@ export interface MapState {
   clickInfo: ClickInfo | null;
   highlightedRuleIndex: number | null;
   hoveredRuleIndex: number | null;
-  baseMap: "osm" | "satellite" | "dark" | "light";
+  baseMap: "osm" | "satellite";
 }
 
 const initialState: MapState = {

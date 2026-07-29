@@ -62,8 +62,10 @@ export const translations: Record<Language, Record<string, string>> = {
     inspectFeature: "Inspeccionar elemento",
     osm: "Mapa Base OSM",
     satellite: "Satélite",
-    dark: "Oscuro",
-    light: "Claro",
+    pointInfo: "Información del Punto",
+    noProperties: "Sin propiedades disponibles",
+    matchedRule: "Regla aplicada",
+    noMatchedRule: "Sin regla coincidente",
   },
   en: {
     legend: "Legend",
@@ -105,7 +107,8 @@ export const translations: Record<Language, Record<string, string>> = {
     noFeaturesFound: "No features found in layer file",
     unsupportedFormat: "Unsupported file format",
     loadProject: "Load Project",
-    loadProjectDesc: "Select a data layer (GeoJSON, KML, GML) and an SLD style file to begin.",
+    loadProjectDesc:
+      "Select a data layer (GeoJSON, KML, GML) and an SLD style file to begin.",
     selectLayer: "Select Layer",
     selectSLD: "Select SLD",
     loadMap: "Load Map",
@@ -125,13 +128,19 @@ export const translations: Record<Language, Record<string, string>> = {
     inspectFeature: "Inspect Feature",
     osm: "OSM Base Map",
     satellite: "Satellite",
-    dark: "Dark",
-    light: "Light",
+    pointInfo: "Point Information",
+    noProperties: "No properties available",
+    matchedRule: "Applied rule",
+    noMatchedRule: "No matching rule",
   },
 };
 
 export type TranslationKey = keyof typeof translations.en;
 
 export function t(lang: Language, key: string | TranslationKey): string {
-  return translations[lang][key as TranslationKey] || translations["en"][key as TranslationKey] || key;
+  return (
+    translations[lang][key as TranslationKey] ||
+    translations["en"][key as TranslationKey] ||
+    key
+  );
 }

@@ -110,7 +110,7 @@ const App: React.FC = () => {
 
   const handleSetHighlightedRuleIndex = useCallback(
     (index: number | null) => dispatch(setHighlightedRuleIndex(index)),
-    [dispatch]
+    [dispatch],
   );
 
   useMapClick(
@@ -397,12 +397,6 @@ const App: React.FC = () => {
               <ToggleButton value="satellite" title={t(language, "satellite")}>
                 <MapIcon sx={{ color: "white" }} />
               </ToggleButton>
-              <ToggleButton value="dark" title={t(language, "dark")}>
-                <MapIcon sx={{ color: "white" }} />
-              </ToggleButton>
-              <ToggleButton value="light" title={t(language, "light")}>
-                <MapIcon sx={{ color: "white" }} />
-              </ToggleButton>
             </ToggleButtonGroup>
             <Button
               color="inherit"
@@ -459,13 +453,11 @@ const App: React.FC = () => {
                     }
                   });
                   if (match)
-                    mapInstance
-                      .getView()
-                      .fit(ext, {
-                        padding: [100, 100, 100, 100],
-                        duration: 1000,
-                        maxZoom: 18,
-                      });
+                    mapInstance.getView().fit(ext, {
+                      padding: [100, 100, 100, 100],
+                      duration: 1000,
+                      maxZoom: 18,
+                    });
                 }}
                 showUnmatched={showUnmatched}
                 onToggleUnmatched={() => {

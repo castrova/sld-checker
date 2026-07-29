@@ -18,7 +18,7 @@ import { evaluateFilter } from "../utils/sldUtils";
 
 export const useMapClick = (
   mapInstance: OLMap | null,
-  layerObjects: React.MutableRefObject<Map<string, VectorLayer>>,
+  _layerObjects: React.MutableRefObject<Map<string, VectorLayer>>,
   language: string,
   stylingFields: string[] = [],
   rules: SldRuleStats[] | undefined = undefined,
@@ -160,7 +160,9 @@ export const useMapClick = (
             onClose={cleanupOverlay}
             stylingFields={stylingFieldsRef.current}
             rules={rulesRef.current}
-            setHighlightedRuleIndex={(idx) => setHighlightedRuleIndexRef.current(idx)}
+            setHighlightedRuleIndex={(idx) =>
+              setHighlightedRuleIndexRef.current(idx)
+            }
           />,
         );
       }
